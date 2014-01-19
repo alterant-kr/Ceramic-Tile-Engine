@@ -47,6 +47,13 @@ function tilelayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheets,
 	local props = getProperties(data.properties or {}, "tiles", true)
 	local layerName = "Layer #" .. dataIndex .. " - \"" .. data.name .. "\""
 
+	if ( mapData.orientation == "isometric" ) then
+		for key,value in pairs(mapData) do print("isometic mapData: ", key,value) end
+		for key,value in pairs(data) do print("isometic data: ", key,value) end
+		for key,value in pairs(tileProperties) do print("isometic tileProperties: ", key,value) end
+		for key,value in pairs(lib_twindex) do print("isometic lib_twindex: ", key,value) end
+	end
+
 	local layer = display_newGroup()
 	local twindex = lib_twindex.buildTwindex(lib_settings.get("enableTwindex"))
 	twindex.loadMatrix(mapData.width, mapData.height, data.data)
@@ -78,9 +85,18 @@ function tilelayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheets,
 
 			local tile = display_newSprite(imageSheets[sheetIndex], imageSheetConfig[sheetIndex])
 				tile:setFrame(tileGID)
-				tile.x, tile.y = mapData.stats.tileWidth * (x - 0.5), mapData.stats.tileHeight * (y - 0.5)
-				tile.xScale, tile.yScale = screen.zoomX, screen.zoomY
 
+				-- Isometric has to be drawed with little tweak from normal by neoroman@alterant.kr on 19/1/2014
+				if ( mapData.orientation == "orthogonal" ) then
+					tile.x, tile.y = mapData.stats.tileWidth * (x - 0.5), mapData.stats.tileHeight * (y - 0.5)
+				elseif ( mapData.orientation == "isometric" ) then
+					tile.x, tile.y = mapData.stats.tileWidth * (x * 0.5 - 0.5)
+									 + (mapData.stats.width * 0.5) - (y * mapData.stats.tileWidth * 0.5), 
+									 mapData.stats.tileHeight * (y * 0.5 - 0.5) 
+									 + ( x * mapData.stats.tileHeight * 0.5 );
+					print("isometic tilemap: x,y=("..x..","..y..")", tile.x, tile.y)
+				end
+				tile.xScale, tile.yScale = screen.zoomX, screen.zoomY
 			local tileProps
 
 			if tileProperties[sheetIndex][tileGID] then
@@ -123,7 +139,14 @@ function tilelayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheets,
 			if not layer._tile[x] then layer._tile[x] = {} end
 			layer._tile[x][y] = tile
 			layer:insert(tile)
-			tile:toBack()
+			if ( mapData.orientation == "orthogonal" ) then
+				tile:toBack()
+			else
+				--local position = "{".. x .. ", ".. y .."}"
+				--local aLabel = display.newText(layer, position, tile.x, tile.y, "Arial", 14)
+				tile:toFront()
+				--aLabel:toFront()
+			end
 		elseif lib_settings.get("redrawOnTileExistent") then
 			layer._eraseTile(x, y)
 			layer._drawTile(x, y)
@@ -181,6 +204,12 @@ function tilelayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheets,
 		local layerFunc = "_eraseTile"
 		if mode == "d" then layerFunc = "_drawTile" end
 
+		-- Isometric has to be drawed lower first by neoroman@alterant.kr on 19/1/2014
+		local oldSeekAlgorithm = lib_twindex.seekAlgorithm
+		if ( mapData.orientation == "isometric" ) then
+			lib_twindex.seekAlgorithm = "fromLow"
+		end
+
 		if func == "seekX" then
 			for x = x1, x2 do
 				twindex.seekY(x, y1, y2, layer[layerFunc])
@@ -189,6 +218,11 @@ function tilelayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheets,
 			for y = y1, y2 do
 				twindex.seekX(y, x1, x2, layer[layerFunc])
 			end
+		end
+
+		-- Isometric has to be drawed lower first by neoroman@alterant.kr on 19/1/2014
+		if ( mapData.orientation == "isometric" ) then
+			lib_twindex.seekAlgorithm = oldSeekAlgorithm
 		end
 	end
 
