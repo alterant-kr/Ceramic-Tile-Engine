@@ -1,36 +1,31 @@
 --------------------------------------------------------------------------------
 --[[
-Dusk Engine Component: TMX
+Dusk Engine Component: Lua Preprocessor
 
-Parses TMX map data.
+Processes a Lua map to conform with Dusk's format.
 --]]
 --------------------------------------------------------------------------------
 
-local lib_tmx = {}
+local lib_preprocessor = {}
 
 --------------------------------------------------------------------------------
 -- Localize
 --------------------------------------------------------------------------------
-local require = require
-
-local tprint = require("Dusk.dusk_core.misc.tprint")
-
-local tprint_add = tprint.add
-local tprint_error = tprint.error
-local tprint_remove = tprint.remove
+local tostring = tostring
 
 --------------------------------------------------------------------------------
--- Parse TMX String
+-- Get Map Data
 --------------------------------------------------------------------------------
-function lib_tmx.parse(str)
-	tprint_add("Parse TMX")
+function lib_preprocessor.process(data)
+	for i = 1, #data.tilesets do
+		local t = data.tilesets[i]
+		t.tileproperties = {}
 
-	-- TMX parsing goes here
-
-	-- For now, though, we can't parse it, so throw an error
-	tprint_error("TMX map support is still in development.")
-
-	tprint_remove()
+		for n = 1, #t.tiles do
+			local p = t.tiles[n]
+			t.tileproperties[tostring(p.id)] = p.properties
+		end
+	end
 end
 
-return lib_tmx
+return lib_preprocessor

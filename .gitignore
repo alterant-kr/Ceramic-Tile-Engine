@@ -1,3 +1,8 @@
 misc_cache.txt
 Plugins/patch.lua
 ivory.lua
+spatialhash.lua
+spatialhash_js.js
+culling.lua
+culling.qc
+Dusk/dusk_core/external/moonbeam.lua

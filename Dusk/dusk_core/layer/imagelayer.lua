@@ -19,6 +19,7 @@ local lib_functions = require("Dusk.dusk_core.misc.functions")
 
 local display_newGroup = display.newGroup
 local display_newImage = display.newImage
+local setVariable = lib_settings.setEvalVariable
 local getProperties = lib_functions.getProperties
 local addProperties = lib_functions.addProperties
 local getDirectory = lib_functions.getDirectory
@@ -34,7 +35,7 @@ function imagelayer.createLayer(data, dirTree)
 
 	local imageDir, filename = getDirectory(dirTree, data.image)
 
-	layer.image = display_newImage(layer,  imageDir .. filename)
+	layer.image = display_newImage(layer, imageDir .. filename)
 	layer.image.x, layer.image.y = data.x + (layer.image.width * 0.5), data.y + (layer.image.height * 0.5)
 
 	------------------------------------------------------------------------------

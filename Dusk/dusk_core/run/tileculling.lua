@@ -59,29 +59,30 @@ function tileculling.addTileCulling(map)
 				local bDiff = nb - pb
 
 				if lDiff > 0 then
-					layerEdits.add(pl, nl, pt, pb, "e")
+					layerEdits.add(pl, nl, pt, pb, "er")
 				elseif lDiff < 0 then
-					layerEdits.add(pl, nl, nt, nb, "d")
+					layerEdits.add(pl, nl, nt, nb, "dr")
 				end
 
 				if rDiff < 0 then
-					layerEdits.add(pr, nr, pt, pb, "e")
+					layerEdits.add(pr, nr, pt, pb, "el")
 				elseif rDiff > 0 then
-					layerEdits.add(pr, nr, nt, nb, "d")
+					layerEdits.add(pr, nr, nt, nb, "dl")
 				end
 
 				if tDiff > 0 then
-					layerEdits.add(nl, nr, pt, layerCulling.now.t, "e")
+					layerEdits.add(nl, nr, pt, layerCulling.now.t, "eb")
 				elseif tDiff < 0 then
-					layerEdits.add(nl, nr, pt, layerCulling.now.t, "d")
+					layerEdits.add(nl, nr, pt, layerCulling.now.t, "db")
 				end
 
 				if bDiff < 0 then
-					layerEdits.add(nl, nr, pb, layerCulling.now.b, "e")
+					layerEdits.add(nl, nr, pb, layerCulling.now.b, "et")
 				elseif bDiff > 0 then
-					layerEdits.add(nl, nr, pb, layerCulling.now.b, "d")
+					layerEdits.add(nl, nr, pb, layerCulling.now.b, "dt")
 				end
 
+				--[[
 				-- Guard against tile "leaks"
 				if lDiff > 0 and tDiff > 0 then
 					layerEdits.add(pl, nl, pt, nt, "e")
@@ -98,6 +99,7 @@ function tileculling.addTileCulling(map)
 				if rDiff < 0 and bDiff < 0 then
 					layerEdits.add(nr, pr, nb, pb, "e")
 				end
+				--]]
 
 				layerEdits.execute()
 			end
@@ -111,10 +113,10 @@ function tileculling.addTileCulling(map)
 
 				-- Calculate left/right/top/bottom to the nearest tile
 				-- We expand each position by one to hide the drawing and erasing
-				l = math_ceil(l * divTileWidth) - 1
-				r = math_ceil(r * divTileWidth) + 1
-				t = math_ceil(t * divTileHeight) - 1
-				b = math_ceil(b * divTileHeight) + 1
+				l = math_ceil(l * divTileWidth) + 1
+				r = math_ceil(r * divTileWidth) - 1
+				t = math_ceil(t * divTileHeight) + 1
+				b = math_ceil(b * divTileHeight) - 1
 
 				-- Update previous position to be equal to current position
 				-- Don't create a new table because overwriting the previous one is faster

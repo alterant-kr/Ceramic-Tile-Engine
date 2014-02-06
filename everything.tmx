@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.0" orientation="orthogonal" width="32" height="24" tilewidth="32" tileheight="32">
- <tileset firstgid="1" source="tileset.tsx"/>
+ <tileset firstgid="1" name="tileset" tilewidth="32" tileheight="32">
+  <image source="tilesets/tileset.png" width="224" height="128"/>
+ </tileset>
  <layer name="Tile Layer 1" width="32" height="24">
   <properties>
    <property name="alpha" value="0.5"/>
+   <property name="xParallax" value="0.5"/>
+   <property name="yParallax" value="0.5"/>
   </properties>
   <data encoding="base64" compression="zlib">
    eJztwzENAAAIA7AFB/NvFhfwtEmbpKqq6sl5vgguMSE=
@@ -16,6 +20,8 @@
    <property name="ghi" value="jkl"/>
    <property name="objects:bodyType" value="static"/>
    <property name="physics:enabled" value="true"/>
+   <property name="xParallax" value="0.75"/>
+   <property name="yParallax" value="0.75"/>
   </properties>
   <object x="32" y="32" width="960" height="704"/>
   <object x="64" y="64" width="896" height="640"/>
@@ -30,7 +36,7 @@
   </object>
  </objectgroup>
  <imagelayer name="Image Layer 1" width="32" height="24">
-  <image source="tileset.png"/>
+  <image source="tilesets/tileset.png"/>
   <properties>
    <property name="physics:enabled" value="true"/>
   </properties>

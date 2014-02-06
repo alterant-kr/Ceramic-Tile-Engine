@@ -17,23 +17,13 @@ local tprint = require("Dusk.dusk_core.misc.tprint")
 local screen = require("Dusk.dusk_core.misc.screen")
 
 local math_floor = math.floor
+local tprint_error = tprint.error
 
 --------------------------------------------------------------------------------
 -- Get Stats
 --------------------------------------------------------------------------------
 function lib_stats.get(data)
 	local stats = {}
-
-	if
-		not data.layers or
-		not data.tilesets or
-		not data.width or
-		not data.height or
-		not data.tilewidth or
-		not data.tileheight then
-	
-		tprint.error("Map is corrupted - missing one or more statistic values.")
-	end
 
 	stats.numTiledLayers = #data.layers
 	stats.tilesetCount = #(data.tilesets or {})
