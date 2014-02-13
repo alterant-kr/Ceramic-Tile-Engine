@@ -7,9 +7,7 @@
          "opacity":1,
          "properties":
             {
-             "alpha":"0.5",
-             "xParallax":"0.5",
-             "yParallax":"0.5"
+             "alpha":"0.5"
             },
          "type":"tilelayer",
          "visible":true,
@@ -144,9 +142,7 @@
              "def":"!json! {\"a\" : 1}",
              "ghi":"jkl",
              "objects:bodyType":"static",
-             "physics:enabled":"true",
-             "xParallax":"0.75",
-             "yParallax":"0.75"
+             "physics:enabled":"true"
             },
          "type":"objectgroup",
          "visible":true,
