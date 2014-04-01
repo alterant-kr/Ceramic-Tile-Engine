@@ -32,7 +32,6 @@ local table_insert = table.insert
 local table_maxn = table.maxn
 local type = type
 local unpack = unpack
-local physics_addBody; if physics and type(physics) == "table" and physics.addBody then physics_addBody = physics.addBody else physics_addBody = function() tprint_error("Physics library was not found on Dusk Engine startup") end end
 local getSetting = lib_settings.get
 local tprint_add = tprint.add
 local tprint_remove = tprint.remove
@@ -44,6 +43,7 @@ local reversePolygon = lib_functions.reversePolygon
 local getProperties = lib_functions.getProperties
 local addProperties = lib_functions.addProperties
 local physicsKeys = {radius = true, isSensor = true, bounce = true, friction = true, density = true, shape = true}
+local physics_addBody; if physics and type(physics) == "table" and physics.addBody then physics_addBody = physics.addBody else physics_addBody = function() tprint_error("Physics library was not found on Dusk Engine startup") end end
 
 --------------------------------------------------------------------------------
 -- Create Layer
