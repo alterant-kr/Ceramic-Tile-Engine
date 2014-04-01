@@ -32,7 +32,6 @@ local tonumber = tonumber
 local pairs = pairs
 local unpack = unpack
 local type = type
-local physics_addBody; if physics and type(physics) == "table" and physics.addBody then physics_addBody = physics.addBody else physics_addBody = function() tprint_error("Physics library was not found on Dusk Engine startup") end end
 local getSetting = lib_settings.get
 local setVariable = lib_settings.setEvalVariable
 local removeVariable = lib_settings.removeEvalVariable
@@ -49,6 +48,7 @@ local hasBit = lib_functions.hasBit
 local setBit = lib_functions.setBit
 local clearBit = lib_functions.clearBit
 local physicsKeys = {radius = true, isSensor = true, bounce = true, friction = true, density = true, shape = true}
+local physics_addBody; if physics and type(physics) == "table" and physics.addBody then physics_addBody = physics.addBody else physics_addBody = function() tprint_error("Physics library was not found on Dusk Engine startup") end end
 
 local flipX = tonumber("80000000", 16)
 local flipY = tonumber("40000000", 16)
