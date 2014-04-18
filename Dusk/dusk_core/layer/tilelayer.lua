@@ -111,11 +111,6 @@ function tilelayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheets,
 
 			local tile = display_newSprite(imageSheets[sheetIndex], imageSheetConfig[sheetIndex])
 				tile:setFrame(tileGID)
-				tile.x, tile.y = mapData.stats.tileWidth * (x - 0.5), mapData.stats.tileHeight * (y - 0.5)
-				tile.xScale, tile.yScale = screen.zoomX, screen.zoomY
-				tile.GID = gid
-				tile.tilesetGID = tileGID
-				tile.tileset = sheetIndex
 
 				if flippedX then tile.xScale = -tile.xScale end
 				if flippedY then tile.yScale = -tile.yScale end
@@ -131,6 +126,9 @@ function tilelayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheets,
 					print("isometic tilemap: x,y=("..x..","..y..")", tile.x, tile.y)
 				end
 				tile.xScale, tile.yScale = screen.zoomX, screen.zoomY
+				tile.GID = gid
+				tile.tilesetGID = tileGID
+				tile.tileset = sheetIndex
 			local tileProps
 
 			if tileProperties[sheetIndex][tileGID] then
@@ -179,11 +177,8 @@ function tilelayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheets,
 			layer:insert(tile)
 			if ( mapData.orientation == "orthogonal" ) then
 				tile:toBack()
-			else
-				--local position = "{".. x .. ", ".. y .."}"
-				--local aLabel = display.newText(layer, position, tile.x, tile.y, "Arial", 14)
+			elseif ( mapData.orientation == "isometric" ) then
 				tile:toFront()
-				--aLabel:toFront()
 			end
 		elseif lib_settings.get("redrawOnTileExistent") then
 			tile:toBack()
