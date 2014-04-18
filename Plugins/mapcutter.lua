@@ -1,36 +1,35 @@
 --------------------------------------------------------------------------------
 --[[
-Dusk Engine Component: TMX
+Dusk Plugin: MapCutter
 
-Parses TMX map data.
+Allows you to load specific layers as a map, instead of the whole thing.
 --]]
 --------------------------------------------------------------------------------
 
-local lib_tmx = {}
+local mapcutter = {}
 
 --------------------------------------------------------------------------------
 -- Localize
 --------------------------------------------------------------------------------
-local require = require
+local dusk = require("Dusk.Dusk")
 
-local tprint = require("Dusk.dusk_core.misc.tprint")
-
-local tprint_add = tprint.add
-local tprint_error = tprint.error
-local tprint_remove = tprint.remove
+local table_insert = table.insert
 
 --------------------------------------------------------------------------------
--- Parse TMX String
+-- Build Map from Layers
 --------------------------------------------------------------------------------
-function lib_tmx.parse(str)
-	tprint_add("Parse TMX")
+function dusk.buildMapFromLayers(filename, layers, base)
+	local data = dusk.loadMap(filename, base)
 
-	-- TMX parsing goes here
+	local newLayers = {}
 
-	-- For now, though, we can't parse it, so throw an error
-	tprint_error("TMX map support is still in development.")
+	for i = 1, #layers do
+		table_insert(newLayers, data.layers[i])
+	end
 
-	tprint_remove()
+	data.layers = newLayers
+
+	return dusk.buildMap(data)
 end
 
-return lib_tmx
+return mapcutter

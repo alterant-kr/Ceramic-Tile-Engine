@@ -1,10 +1,13 @@
 --------------------------------------------------------------------------------
 --[[
 Dusk Engine Demo: Bob
-
-A relatively simple maze game using Dusk as the core engine.
 --]]
 --------------------------------------------------------------------------------
+
+display.setStatusBar(display.HiddenStatusBar)
+
+display.setDefault("minTextureFilter", "nearest")
+display.setDefault("magTextureFilter", "nearest")
 
 --------------------------------------------------------------------------------
 -- Localize
@@ -18,12 +21,14 @@ physics.setGravity(0, 0)
 
 local math_abs = math.abs
 
--- Variables we'll use often
+local levelNum
+local gameEnded
+local allowTouches
+local spriteOptions
+local gui
 local map
 local player
 local m
-local gui
-local global
 local toggleGameEnd
 
 --------------------------------------------------------------------------------
@@ -32,22 +37,18 @@ local toggleGameEnd
 -- Point in rect, using Corona objects rather than a list of coordinates
 local function pointInRect(point, rect) return (point.x <= rect.contentBounds.xMax) and (point.x >= rect.contentBounds.xMin) and (point.y <= rect.contentBounds.yMax) and (point.y >= rect.contentBounds.yMin) end
 
-
--- Cache to hold miscellaneous variables
--- This is because too many local variables fills up Lua's local space, so values that could just as easily go in a table can go there.
-global = {} -- Contrary to its name, this is not a _G table
-	global.gameEnded = false
-	global.allowTouches = true
-
-	global.spriteOptions = { -- Sprite options for player and finish star
-		player = {
-			{frames = {1, 2, 3, 2, 1, 4, 5, 4}, name = "move", time = 500},
-			{frames = {6, 7, 8, 9, 10, 9, 8, 7}, name = "still", time = 1000}
-		},
-		finish = {
-			{frames = {1, 2, 3, 4, 5, 5, 4, 3, 2, 1}, name = "still", time = 1000}
-		}
+levelNum = 1
+gameEnded = false
+allowTouches = true
+spriteOptions = {
+	player = {
+		{frames = {1, 2, 3, 2, 1, 4, 5, 4}, name = "move", time = 500},
+		{frames = {6, 7, 8, 9, 10, 9, 8, 7}, name = "still", time = 1000}
+	},
+	finish = {
+		{frames = {1, 2, 3, 4, 5, 5, 4, 3, 2, 1}, name = "still", time = 1000}
 	}
+}
 
 --------------------------------------------------------------------------------
 -- GUI
@@ -64,7 +65,7 @@ gui:insert(gui.front)
 --------------------------------------------------------------------------------
 local dusk = require("Dusk.Dusk")
 
-map = dusk.buildMap("mapdata/levels/level" .. levelNum .. ".json")
+map = dusk.buildMap("levels/level" .. levelNum .. ".json")
 gui.back:insert(map)
 
 --------------------------------------------------------------------------------
@@ -76,7 +77,7 @@ local finishSheet = graphics.newImageSheet("graphics/star.png", {width = 64, hei
 --------------------------------------------------------------------------------
 -- Create Player
 --------------------------------------------------------------------------------
-player = display.newSprite(playerSheet, global.spriteOptions.player)
+player = display.newSprite(playerSheet, spriteOptions.player)
 player.speed = 250
 player:setFillColor(0, 0, 0)
 player.title = "player" -- Used for indentifying player during collision events
@@ -93,7 +94,7 @@ end
 -- Create Finish Star
 --------------------------------------------------------------------------------
 -- We could just as easily transition.to it, but we'll use a sprite for the sake of terseness
-local finish = display.newSprite(finishSheet, global.spriteOptions.finish)
+local finish = display.newSprite(finishSheet, spriteOptions.finish)
 
 physics.addBody(finish, "static", {radius = finish.width * 0.25, isSensor = true})
 finish:setFillColor(0, 0, 0)
@@ -132,7 +133,7 @@ m.bkg:toBack()
 
 -- Touch listener for controls
 function m:touch(event)
-	if not global.allowTouches then return false end
+	if not allowTouches then return false end
 	
 	if event.target.isFocus or "began" == event.phase then
 
@@ -245,3 +246,6 @@ player:setSequence("still")
 player:play()
 finish:setSequence("still") -- Always good to be explicit, even if there's only one animation
 finish:play()
+
+-- Display the initial alert
+native.showAlert("Bob", "Welcome to the Bob demo. This demo uses Box2D physics added via properties to make a simple maze environment for Bob to move around in.\n\nControl the player with the D-pad in the bottom left corner.\n\nRead the code to see how it works!", {"Got it!"})

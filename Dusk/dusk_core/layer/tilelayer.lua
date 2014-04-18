@@ -15,9 +15,9 @@ local require = require
 
 local tprint = require("Dusk.dusk_core.misc.tprint")
 local screen = require("Dusk.dusk_core.misc.screen")
-local lib_twindex = require("Dusk.dusk_core.misc.twindex")
 local lib_settings = require("Dusk.dusk_core.misc.settings")
 local lib_functions = require("Dusk.dusk_core.misc.functions")
+local lib_twindex = require("Dusk.dusk_core.external.twindex")
 
 local display_remove = display.remove
 local display_newSprite = display.newSprite
@@ -32,19 +32,34 @@ local tonumber = tonumber
 local pairs = pairs
 local unpack = unpack
 local type = type
-local physics_addBody; if physics and type(physics) == "table" and physics.addBody then physics_addBody = physics.addBody else physics_addBody = function() tprint.error("Physics library was not found on Dusk Engine startup") end end
+local getSetting = lib_settings.get
+local setVariable = lib_settings.setEvalVariable
+local removeVariable = lib_settings.removeEvalVariable
+local tprint_add = tprint.add
+local tprint_error = tprint.error
+local tprint_assert = tprint.assert
+local tprint_remove = tprint.remove
 local fnn = lib_functions.fnn
 local spliceTable = lib_functions.spliceTable
 local getProperties = lib_functions.getProperties
 local addProperties = lib_functions.addProperties
 local getXY = lib_functions.getXY
+local hasBit = lib_functions.hasBit
+local setBit = lib_functions.setBit
+local clearBit = lib_functions.clearBit
 local physicsKeys = {radius = true, isSensor = true, bounce = true, friction = true, density = true, shape = true}
+local physics_addBody; if physics and type(physics) == "table" and physics.addBody then physics_addBody = physics.addBody else physics_addBody = function() tprint_error("Physics library was not found on Dusk Engine startup") end end
+
+local flipX = tonumber("80000000", 16)
+local flipY = tonumber("40000000", 16)
+local flipD = tonumber("20000000", 16)
 
 --------------------------------------------------------------------------------
 -- Create Layer
 --------------------------------------------------------------------------------
 function tilelayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheets, imageSheetConfig, tileProperties)
 	local props = getProperties(data.properties or {}, "tiles", true)
+	
 	local layerName = "Layer #" .. dataIndex .. " - \"" .. data.name .. "\""
 
 	if ( mapData.orientation == "isometric" ) then
@@ -55,36 +70,55 @@ function tilelayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheets,
 	end
 
 	local layer = display_newGroup()
-	local twindex = lib_twindex.buildTwindex(lib_settings.get("enableTwindex"))
+	local twindex = lib_twindex.buildTwindex(getSetting("enableTwindex"))
 	twindex.loadMatrix(mapData.width, mapData.height, data.data)
 
-	layer._tile = {}
 	layer.props = {}
+	local layerTiles = {}
+	local locked = {}
 
-	function layer.tile(x, y) if layer._tile[x] ~= nil and layer._tile[x][y] ~= nil then return layer._tile[x][y] else return nil end end
+	function layer.tile(x, y) if layerTiles[x] ~= nil and layerTiles[x][y] ~= nil then return layerTiles[x][y] else return nil end end
 
 	------------------------------------------------------------------------------
 	-- Draw a Single Tile to the Screen
 	------------------------------------------------------------------------------
 	function layer._drawTile(x, y)
-		tprint.add("Draw Tile (" .. layerName .. ")")
+		if locked[x] and locked[x][y] == "e" then return false end
+
+		tprint_add("Draw Tile (" .. layerName .. ")")
 		
 		if layer.tile(x, y) == nil then
 			local id = ((y - 1) * mapData.width) + x
 			local gid = data.data[id]
 
-			tprint.assert(gid <= mapData.highestGID and gid >= 0, "Invalid GID at position [" .. x .. "," .. y .."] (index #" .. id ..") - expected [0 <= GID <= " .. mapData.highestGID .. "] but got " .. gid .. " instead.")
 			if gid == 0 then return true end -- Don't draw if the GID is 0 (signifying an empty tile)
 
 			--------------------------------------------------------------------------
 			-- Create Tile
 			--------------------------------------------------------------------------
+			local flippedX = false
+			local flippedY = false
+			local rotated = false
+			if hasBit(gid, flipX) then flippedX = true gid = clearBit(gid, flipX) end
+			if hasBit(gid, flipY) then flippedY = true gid = clearBit(gid, flipY) end
+			if hasBit(gid, flipD) then rotated = true gid = clearBit(gid, flipD) end
+
+			tprint_assert(gid <= mapData.highestGID and gid >= 0, "Invalid GID at position [" .. x .. "," .. y .."] (index #" .. id ..") - expected [0 <= GID <= " .. mapData.highestGID .. "] but got " .. gid .. " instead.")
+
 			local tileData = tileIndex[gid]
 			local sheetIndex = tileData.tilesetIndex
 			local tileGID = tileData.gid
 
 			local tile = display_newSprite(imageSheets[sheetIndex], imageSheetConfig[sheetIndex])
 				tile:setFrame(tileGID)
+				tile.x, tile.y = mapData.stats.tileWidth * (x - 0.5), mapData.stats.tileHeight * (y - 0.5)
+				tile.xScale, tile.yScale = screen.zoomX, screen.zoomY
+				tile.GID = gid
+				tile.tilesetGID = tileGID
+				tile.tileset = sheetIndex
+
+				if flippedX then tile.xScale = -tile.xScale end
+				if flippedY then tile.yScale = -tile.yScale end
 
 				-- Isometric has to be drawed with little tweak from normal by neoroman@alterant.kr on 19/1/2014
 				if ( mapData.orientation == "orthogonal" ) then
@@ -131,13 +165,17 @@ function tilelayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheets,
 			--------------------------------------------------------------------------
 			tile.props = {}
 		
+			if tileGID == 100 then
+				print(tileProps.object.moose)
+			end
+
 			addProperties(props, "object", tile)
 			addProperties(tileProps, "object", tile)
 			addProperties(tileProps, "props", tile.props)
 
 			tile.tileX, tile.tileY = x, y
-			if not layer._tile[x] then layer._tile[x] = {} end
-			layer._tile[x][y] = tile
+			if not layerTiles[x] then layerTiles[x] = {} end
+			layerTiles[x][y] = tile
 			layer:insert(tile)
 			if ( mapData.orientation == "orthogonal" ) then
 				tile:toBack()
@@ -148,23 +186,27 @@ function tilelayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheets,
 				--aLabel:toFront()
 			end
 		elseif lib_settings.get("redrawOnTileExistent") then
+			tile:toBack()
+		elseif getSetting("redrawOnTileExistent") then
 			layer._eraseTile(x, y)
 			layer._drawTile(x, y)
 		end
 
-		tprint.remove()
+		tprint_remove()
 	end
 
 	------------------------------------------------------------------------------
 	-- Erase a Single Tile from the Screen
 	------------------------------------------------------------------------------
 	function layer._eraseTile(x, y)
-		if layer.tile(x, y) then
-			display_remove(layer._tile[x][y])
-			layer._tile[x][y] = nil
+		if locked[x] and locked[x][y] == "d" then return false end
 
-			if table_maxn(layer._tile[x]) == 0 then
-				layer._tile[x] = nil -- Clear row if no tiles in the row
+		if layer.tile(x, y) then
+			display_remove(layerTiles[x][y])
+			layerTiles[x][y] = nil
+
+			if table_maxn(layerTiles[x]) == 0 then
+				layerTiles[x] = nil -- Clear row if no tiles in the row
 			end
 		end
 	end
@@ -176,6 +218,13 @@ function tilelayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheets,
 		layer._eraseTile(x, y)
 		layer._drawTile(x, y)
 	end
+
+	------------------------------------------------------------------------------
+	-- Lock/Unlock a Tile
+	------------------------------------------------------------------------------
+	function layer._lockTileDrawn(x, y) if not locked[x] then locked[x] = {} end locked[x][y] = "d" layer._drawTile(x, y) end
+	function layer._lockTileErased(x, y) if not locked[x] then locked[x] = {} end locked[x][y] = "e" layer._eraseTile(x, y) end
+	function layer._unlockTile(x, y) if locked[x] and locked[x][y] then locked[x][y] = nil if table_maxn(locked[x]) == 0 then locked[x] = nil end end end
 
 	------------------------------------------------------------------------------
 	-- Edit Section
@@ -201,8 +250,7 @@ function tilelayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheets,
 		if distY > distX then func = "seekY" end
 
 		-- Function associated with edit mode
-		local layerFunc = "_eraseTile"
-		if mode == "d" then layerFunc = "_drawTile" end
+		local layerFunc = "_eraseTile" if mode == "d" then layerFunc = "_drawTile" elseif mode == "ld" then layerFunc = "_lockTileDrawn" elseif mode == "le" then layerFunc = "_lockTileErased" elseif mode == "u" then layerFunc = "_unlockTile" end
 
 		-- Isometric has to be drawed lower first by neoroman@alterant.kr on 19/1/2014
 		local oldSeekAlgorithm = lib_twindex.seekAlgorithm
@@ -241,18 +289,31 @@ function tilelayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheets,
 	end
 
 	------------------------------------------------------------------------------
+	-- Lock Section (shortcut)
+	------------------------------------------------------------------------------
+	function layer.lock(x1, y1, x2, y2, mode)
+		if mode == "draw" or mode == "d" then
+			return layer._edit(x1, x2, y1, y2, "ld")
+		elseif mode == "erase" or mode == "e" then
+			return layer._edit(x1, x2, y1, y2, "le")
+		elseif mode == "unlock" or mode == "u" then
+			return layer._edit(x1, x2, y1, y2, "u")
+		end
+	end
+
+	------------------------------------------------------------------------------
 	-- Tiles to Pixels Conversion
 	------------------------------------------------------------------------------
 	function layer.tilesToPixels(x, y)
-		tprint.add("Convert Tiles to Pixels (" .. layerName .. ")")
+		tprint_add("Convert Tiles to Pixels (" .. layerName .. ")")
 		local x, y = getXY(x, y)
 
-		tprint.assert((x ~= nil) and (y ~= nil), "Missing argument(s).")
+		tprint_assert((x ~= nil) and (y ~= nil), "Missing argument(s).")
 
 		x, y = x - 0.5, y - 0.5
 		x, y = (x * mapData.stats.tileWidth), (y * mapData.stats.tileHeight)
 
-		tprint.remove()
+		tprint_remove()
 		return x, y
 	end
 
@@ -260,12 +321,12 @@ function tilelayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheets,
 	-- Pixels to Tiles Conversion
 	------------------------------------------------------------------------------
 	function layer.pixelsToTiles(x, y)
-		tprint.add("Convert Pixels to Tiles (" .. layerName .. ")")
+		tprint_add("Convert Pixels to Tiles (" .. layerName .. ")")
 		local x, y = getXY(x, y)
 
-		tprint.assert((x ~= nil) and (y ~= nil), "Missing argument(s).")	--tprint.assert((type(x) == "number") and (type(y) == "number"), "Wrong argument type(s).")
+		tprint_assert((x ~= nil) and (y ~= nil), "Missing argument(s).")
 		
-		tprint.remove()
+		tprint_remove()
 		return math_ceil(x / mapData.stats.tileWidth), math_ceil(y / mapData.stats.tileHeight)
 	end
 
@@ -298,9 +359,9 @@ function tilelayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheets,
 	-- Tile Iterators
 	------------------------------------------------------------------------------
 	function layer.tilesInRange(x, y, w, h)
-		tprint.add("Tiles in Range Iterator")
-		tprint.assert((x ~= nil) and (y ~= nil) and (w ~= nil) and (h ~= nil), "Missing argument(s).")
-		tprint.remove()
+		tprint_add("Tiles in Range Iterator")
+		tprint_assert((x ~= nil) and (y ~= nil) and (w ~= nil) and (h ~= nil), "Missing argument(s).")
+		tprint_remove()
 
 		local tiles = layer._getTilesInRange(x, y, w, h)
 		
@@ -312,9 +373,9 @@ function tilelayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheets,
 	end
 
 	function layer.tilesInRect(x, y, w, h)
-		tprint.add("Tiles in Range Iterator")
-		tprint.assert((x ~= nil) and (y ~= nil) and (w ~= nil) and (h ~= nil), "Missing argument(s).")
-		tprint.remove()
+		tprint_add("Tiles in Range Iterator")
+		tprint_assert((x ~= nil) and (y ~= nil) and (w ~= nil) and (h ~= nil), "Missing argument(s).")
+		tprint_remove()
 
 		local tiles = layer._getTilesInRange(x - w, y - h, w * 2, h * 2)
 

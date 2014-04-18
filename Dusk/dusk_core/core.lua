@@ -29,21 +29,50 @@ local display_newGroup = display.newGroup
 local type = type
 local table_insert = table.insert
 local math_ceil = math.ceil
+local getSetting = lib_settings.get
+local setVariable = lib_settings.setEvalVariable
+local removeVariable = lib_settings.removeEvalVariable
+local tprint_add = tprint.add
+local tprint_remove = tprint.remove
+local tprint_clear = tprint.clear
+local tprint_assert = tprint.assert
 local fnn = lib_functions.fnn
 local getXY = lib_functions.getXY
 
 --------------------------------------------------------------------------------
--- Build Map
+-- Load Map
 --------------------------------------------------------------------------------
-function core.buildMap(filename, base)
+function core.loadMap(filename, base)
 	local f1, f2 = filename:find("/?([^/]+%..+)$")
 	local actualFileName = filename:sub(f1 + 1, f2)
-	local dirTree = {}; for dir in filename:sub(1, f1):gmatch(".-/") do table_insert(dirTree, dir) end
+	local dirTree = {}; for dir in filename:sub(1, f1):gmatch("(.-)/") do table_insert(dirTree, dir) end
 
 	-- Load other things
-	tprint.add("Load Data"); local data = lib_data.get(filename, base); tprint.remove()
-	tprint.add("Load Stats"); local stats = lib_stats.get(data); tprint.remove(); data.stats = stats
-	tprint.add("Load Tilesets"); local imageSheets, imageSheetConfig, tileProperties, tileIndex = lib_tilesets.get(data, dirTree); tprint.remove()
+	tprint_add("Load Data"); local data = lib_data.get(filename, base); tprint_remove()
+	tprint_add("Load Stats"); local stats = lib_stats.get(data); tprint_remove(); data.stats = stats
+
+	data._dusk = {}
+	data._dusk.dirTree = dirTree
+
+	return data, stats
+end
+
+--------------------------------------------------------------------------------
+-- Build Map
+--------------------------------------------------------------------------------
+function core.buildMap(data)
+	tprint_add("Load Tilesets"); local imageSheets, imageSheetConfig, tileProperties, tileIndex = lib_tilesets.get(data, data._dusk.dirTree); tprint_remove()
+
+	setVariable("mapWidth", data.stats.mapWidth)
+	setVariable("mapHeight", data.stats.mapHeight)
+	setVariable("pixelWidth", data.stats.width)
+	setVariable("pixelHeight", data.stats.height)
+	setVariable("tileWidth", data.stats.tileWidth)
+	setVariable("tileHeight", data.stats.tileHeight)
+	setVariable("rawTileWidth", data.stats.rawTileWidth)
+	setVariable("rawTileHeight", data.stats.rawTileHeight)
+	setVariable("scaledTileWidth", data.stats.tileWidth)
+	setVariable("scaledTileHeight", data.stats.tileHeight)
 	
 	------------------------------------------------------------------------------
 	-- Map Object
@@ -67,9 +96,9 @@ function core.buildMap(filename, base)
 	------------------------------------------------------------------------------
 	-- Create Layers
 	------------------------------------------------------------------------------
-	tprint.add("Create Layers")
+	tprint_add("Create Layers")
 
-	local enableTileCulling = lib_settings.get("enableTileCulling")
+	local enableTileCulling = getSetting("enableTileCulling")
 	local layerIndex = 0 -- Use a separate variable so that we can keep track of !inactive! layers
 	local numLayers = 0
 
@@ -88,11 +117,12 @@ function core.buildMap(filename, base)
 	}
 
 	for i = 1, #data.layers do
-		tprint.add("Layer #" .. i .. " - \"" .. data.layers[i].name .. "\"")
+		tprint_add("Layer #" .. i .. " - \"" .. data.layers[i].name .. "\"")
 
 		if (data.layers[i].properties or {})["!inactive!"] ~= "true" then
 			local layer
 
+			-- Pass each layer type to that layer builder
 			if data.layers[i].type == "tilelayer" then
 				layer = lib_tilelayer.createLayer(data, data.layers[i], i, tileIndex, imageSheets, imageSheetConfig, tileProperties)
 				layer._type = "tile"
@@ -105,7 +135,7 @@ function core.buildMap(filename, base)
 
 				-- Object layer-specific code
 			elseif data.layers[i].type == "imagelayer" then
-				layer = lib_imagelayer.createLayer(data.layers[i], dirTree)
+				layer = lib_imagelayer.createLayer(data.layers[i], data._dusk.dirTree)
 				layer._type = "image"
 				
 				-- Image layer-specific code
@@ -128,20 +158,21 @@ function core.buildMap(filename, base)
 			layerIndex = layerIndex + 1
 		end
 
-		tprint.remove()
+		tprint_remove()
 	end
 
+	-- Now we add each layer to the layer list, for quick layer iteration of a specific type
 	for i = 1, #map.layer do
 		if map.layer[i]._type == "tile" then
 			table_insert(layerList.tile, i)
 		elseif map.layer[i]._type == "object" then
-			table_insert(layerList.tile, i)
+			table_insert(layerList.object, i)
 		elseif map.layer[i]._type == "image" then
-			table_insert(layerList.tile, i)
+			table_insert(layerList.image, i)
 		end
 	end
 
-	tprint.remove()
+	tprint_remove()
 
 	------------------------------------------------------------------------------
 	-- Map Methods
@@ -151,15 +182,14 @@ function core.buildMap(filename, base)
 	-- Tiles/Pixel Conversion
 	------------------------------------------------------------------------------
 	function map.tilesToPixels(x, y)
-		tprint.add("Convert Tiles to Pixels")
+		tprint_add("Convert Tiles to Pixels")
 		local x, y = getXY(x, y)
 
-		tprint.assert((x ~= nil) and (y ~= nil), "Missing argument(s).")
-		--tprint.assert((type(x) == "number") and (type(y) == "number"), "Wrong argument type(s).")
+		tprint_assert((x ~= nil) and (y ~= nil), "Missing argument(s).")
 
 		x, y = x - 0.5, y - 0.5
 		
-		tprint.remove()
+		tprint_remove()
 		return (x * map.data.tileWidth), (y * map.data.tileHeight)
 	end
 
@@ -174,14 +204,13 @@ function core.buildMap(filename, base)
 	-- Pixels/Tiles Conversion
 	------------------------------------------------------------------------------
 	function map.pixelsToTiles(x, y)
-		tprint.add("Convert Pixels to Tiles")
+		tprint_add("Convert Pixels to Tiles")
 		local x, y = getXY(x, y)
 
-		tprint.assert((x ~= nil) and (y ~= nil), "Missing argument(s).")
-		--tprint.assert((type(x) == "number") and (type(y) == "number"), "Wrong argument type(s).")
+		tprint_assert((x ~= nil) and (y ~= nil), "Missing argument(s).")
 
 		x, y = map:contentToLocal(x, y)
-		tprint.remove()
+		tprint_remove()
 		return math_ceil(x / map.data.tileWidth), math_ceil(y / map.data.tileHeight)
 	end
 
@@ -189,12 +218,12 @@ function core.buildMap(filename, base)
 	-- Is Tile in Map
 	------------------------------------------------------------------------------
 	function map.tileWithinMap(x, y)
-		tprint.add("Tile Within Map")
+		tprint_add("Tile Within Map")
 		local x, y = getXY(x, y)
 
-		tprint.assert((x ~= nil) and (y ~= nil), "Missing argument(s).")
+		tprint_assert((x ~= nil) and (y ~= nil), "Missing argument(s).")
 
-		tprint.remove()
+		tprint_remove()
 		return (x >= 1 and x <= map.data.mapWidth) and (y >= 1 and y <= map.data.mapHeight)
 	end
 
@@ -241,7 +270,7 @@ function core.buildMap(filename, base)
 	-- Destroy Map
 	------------------------------------------------------------------------------
 	function map.destroy()
-		tprint.clear()
+		tprint_clear()
 
 		update.destroy()
 

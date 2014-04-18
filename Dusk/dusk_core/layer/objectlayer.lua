@@ -32,7 +32,10 @@ local table_insert = table.insert
 local table_maxn = table.maxn
 local type = type
 local unpack = unpack
-local physics_addBody; if physics and type(physics) == "table" and physics.addBody then physics_addBody = physics.addBody else physics_addBody = function() tprint.error("Physics library was not found on Dusk Engine startup") end end
+local getSetting = lib_settings.get
+local tprint_add = tprint.add
+local tprint_remove = tprint.remove
+local tprint_assert = tprint.assert
 local fnn = lib_functions.fnn
 local spliceTable = lib_functions.spliceTable
 local isPolyClockwise = lib_functions.isPolyClockwise
@@ -40,13 +43,14 @@ local reversePolygon = lib_functions.reversePolygon
 local getProperties = lib_functions.getProperties
 local addProperties = lib_functions.addProperties
 local physicsKeys = {radius = true, isSensor = true, bounce = true, friction = true, density = true, shape = true}
+local physics_addBody; if physics and type(physics) == "table" and physics.addBody then physics_addBody = physics.addBody else physics_addBody = function() tprint_error("Physics library was not found on Dusk Engine startup") end end
 
 --------------------------------------------------------------------------------
 -- Create Layer
 --------------------------------------------------------------------------------
 function objectlayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheets, imageSheetConfig)
 	local props = getProperties(data.properties or {}, "objects", true)
-	local ellipseRadiusMode = lib_settings.get("ellipseRadiusMode")
+	local ellipseRadiusMode = getSetting("ellipseRadiusMode")
 	local layerName = "Layer #" .. dataIndex .. " - \"" .. data.name .. "\""
 
 	local layer = display_newGroup()
@@ -58,9 +62,9 @@ function objectlayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheet
 	-- Create Objects
 	------------------------------------------------------------------------------
 	for i = 1, #data.objects do
-		tprint.add("Create Object #" .. i .. " - \"" .. data.objects[i].name .. "\"")
+		tprint_add("Create Object #" .. i .. " - \"" .. data.objects[i].name .. "\"")
 		local o = data.objects[i]
-		if not o then tprint.error("Object data missing at index " .. i .. ".") end
+		tprint_assert(o ~= nil, "Object data missing at index " .. i .. ".")
 
 		local obj
 		local objProps = getProperties(o.properties or {}, "object", false)
@@ -81,7 +85,7 @@ function objectlayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheet
 			obj.x, obj.y = zx + (obj.contentWidth * 0.5), zy + (obj.contentHeight * 0.5)
 
 			-- Generate shape
-			if lib_settings.get("autoGenerateObjectShapes") and physicsExistent then
+			if getSetting("autoGenerateObjectShapes") and physicsExistent then
 				if ellipseRadiusMode == "min" then
 					objProps.physics[1].radius = math_min(zw * 0.5, zh * 0.5) -- Min radius
 				elseif ellipseRadiusMode == "max" then
@@ -92,7 +96,7 @@ function objectlayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheet
 			end
 
 			obj._objType = "ellipse"
-			lib_settings.get("onEllipse")(obj)
+			getSetting("onEllipse")(obj)
 
 		----------------------------------------------------------------------------
 		-- Polygon or Polyline Object
@@ -109,7 +113,7 @@ function objectlayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheet
 			obj.x, obj.y = o.x, o.y
 		
 			-- Generate physics shape
-			if lib_settings.get("autoGenerateObjectShapes") and physicsExistent then
+			if getSetting("autoGenerateObjectShapes") and physicsExistent then
 				local physicsShape = {}
 
 				for i = 1, math_min(#points, 8) do
@@ -126,7 +130,7 @@ function objectlayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheet
 			end
 
 			obj._objType = (o.polygon and "polygon") or "polyline"
-			lib_settings.get("onPointBased")(obj)
+			getSetting("onPointBased")(obj)
 
 		----------------------------------------------------------------------------
 		-- Image Object
@@ -142,7 +146,7 @@ function objectlayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheet
 				obj.xScale, obj.yScale = screen.zoomX, screen.zoomY
 
 			obj._objType = "image"
-			lib_settings.get("onImageObj")(obj)
+			getSetting("onImageObj")(obj)
 
 			-- No need to generate shape because it automatically fits to rectangle shapes
 
@@ -155,9 +159,9 @@ function objectlayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheet
 
 			obj._objType = "rectangle"
 			-- Create point or square special type for objects
-			if lib_settings.get("objTypeRectPointSquare") then if obj.width == 0 and obj.height == 0 then obj.objType = "point" elseif obj.width == obj.height then obj.objType = "square" end end
+			if getSetting("objTypeRectPointSquare") then if obj.width == 0 and obj.height == 0 then obj.objType = "point" elseif obj.width == obj.height then obj.objType = "square" end end
 
-			lib_settings.get("onRect")(obj)
+			getSetting("onRect")(obj)
 
 			-- No need to generate shape because it automatically fits to rectangle shapes
 		end
@@ -187,7 +191,7 @@ function objectlayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheet
 		-- Add Properties
 		----------------------------------------------------------------------------
 		-- Apply onObj function to object
-		lib_settings.get("onObj")(obj)
+		getSetting("onObj")(obj)
 
 		-- Add object properties
 		obj.props = {}
@@ -197,7 +201,7 @@ function objectlayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheet
 		addProperties(objProps, "props", obj.props)
 
 		if obj._objType ~= "image" then
-			obj.isVisible = lib_settings.get("virtualObjectsVisible") 
+			obj.isVisible = getSetting("virtualObjectsVisible") 
 		end
 
 		----------------------------------------------------------------------------
@@ -209,7 +213,7 @@ function objectlayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheet
 		table_insert(layer.object, obj)
 		layer:insert(obj)
 
-		tprint.remove()
+		tprint_remove()
 	end
 
 	------------------------------------------------------------------------------
@@ -231,7 +235,7 @@ function objectlayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheet
 			if objects[index] then
 				return layer.object[objects[index].index]
 			else
-				tprint.remove()
+				tprint_remove()
 				return nil
 			end
 		end
@@ -241,9 +245,9 @@ function objectlayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheet
 	-- Iterator: _literal()
 	------------------------------------------------------------------------------
 	function layer._literal(n, checkFor)
-		tprint.add("Iterator - " .. "(" .. layerName .. ")")
+		tprint_add("Iterator - " .. "(" .. layerName .. ")")
 
-		if n == nil then tprint.error("Nothing was passed to constructor.") end
+		tprint_assert(n ~= nil, "Nothing was passed to constructor.")
 
 		local n = n
 		local checkFor = checkFor or "type"
@@ -255,9 +259,9 @@ function objectlayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheet
 	-- Iterator: _match()
 	------------------------------------------------------------------------------
 	function layer._match(n, checkFor)
-		tprint.add("Iterator - " .. "(" .. layerName .. ")")
+		tprint_add("Iterator - " .. "(" .. layerName .. ")")
 
-		if n == nil then tprint.error("Nothing was passed to constructor.") end
+		tprint_assert(n ~= nil, "Nothing was passed to constructor.")
 
 		local n = n
 		local checkFor = checkFor or "type"
@@ -279,7 +283,7 @@ function objectlayer.createLayer(mapData, data, dataIndex, tileIndex, imageSheet
 	-- objTypeIs()
 	function layer.objTypeIs(n) return layer._literal(n, "_objType") end
 	-- objects()
-	function layer.objects() tprint.add("Objects Iterator - " .. "(" .. layerName .. ")") return layer._newIterator(function() return true end) end
+	function layer.objects() tprint_add("Objects Iterator - " .. "(" .. layerName .. ")") return layer._newIterator(function() return true end) end
 
 	------------------------------------------------------------------------------
 	-- Destroy Layer

@@ -18,6 +18,10 @@ local screen = require("Dusk.dusk_core.misc.screen")
 local lib_settings = require("Dusk.dusk_core.misc.settings")
 local lib_functions = require("Dusk.dusk_core.misc.functions")
 
+local getSetting = lib_settings.get
+local tprint_add = tprint.add
+local tprint_remove = tprint.remove
+local tprint_assert = tprint.assert
 local getXY = lib_functions.getXY
 local clamp = lib_functions.clamp
 local display_contentWidth = display.contentWidth
@@ -33,12 +37,12 @@ local type = type
 -- Add Camera Control to a Map
 --------------------------------------------------------------------------------
 function lib_camera.addControl(map)
-	tprint.add("Set Up Camera")
+	tprint_add("Set Up Camera")
 
 	local camera
 	camera = {
-		trackingLevel = lib_settings.get("defaultCameraTrackingLevel"),
-		scaleBoundsToScreen = lib_settings.get("scaleCameraBoundsToScreen"),
+		trackingLevel = getSetting("defaultCameraTrackingLevel"),
+		scaleBoundsToScreen = getSetting("scaleCameraBoundsToScreen"),
 		viewX = screen.centerX,
 		viewY = screen.centerY,
 		layer = {},
@@ -73,14 +77,13 @@ function lib_camera.addControl(map)
 	-- Load Each Layer
 	------------------------------------------------------------------------------
 	------------------------------------------------------------------------------
+
 	for i = 1, #map.layer do
 		if map.layer[i].cameraTrackingEnabled then
 			camera.layer[i] = {
 				update = function() end, -- Placeholder to keep from rehashing
 				xOffset = 0,
 				yOffset = 0,
-				--xScale = 1, -- For if I ever get per-layer scaling working
-				--yScale = 1,
 				x = 0,
 				y = 0
 			}
@@ -89,28 +92,13 @@ function lib_camera.addControl(map)
 			-- Update Camera
 			--------------------------------------------------------------------------
 			camera.layer[i].update = function()
-				local addX, addY = camera.addX, camera.addY
+				local layer = map.layer[i]
 
-				local layerX = camera.layer[i].x
-				local layerY = camera.layer[i].y
-
-				local viewX = camera.viewX* map.layer[i].xParallax
-				local viewY = camera.viewY* map.layer[i].xParallax
-
-				local diffX = (-viewX - layerX)
-				local diffY = (-viewY - layerY)
-
-				local incrX = (diffX * camera.trackingLevel)
-				local incrY = (diffY * camera.trackingLevel)
-
-				local endX = layerX + incrX
-				local endY = layerY + incrY
+				camera.layer[i].x = camera.layer[i].x + (-camera.viewX - camera.layer[i].x)
+				camera.layer[i].y = camera.layer[i].y + (-camera.viewY - camera.layer[i].y)
 				
-				camera.layer[i].x = endX
-				camera.layer[i].y = endY
-				
-				map.layer[i].x = endX + addX + camera.layer[i].xOffset
-				map.layer[i].y = endY + addY + camera.layer[i].yOffset
+				layer.x = (layer.x - (layer.x - (camera.layer[i].x + camera.addX) * layer.xParallax) * camera.trackingLevel) + camera.layer[i].xOffset
+				layer.y = (layer.y - (layer.y - (camera.layer[i].y + camera.addY) * layer.yParallax) * camera.trackingLevel) + camera.layer[i].yOffset
 			end
 	
 			--------------------------------------------------------------------------
@@ -125,8 +113,6 @@ function lib_camera.addControl(map)
 
 			-- Get offset
 			map.layer[i].getOffset = function() return camera.layer[i].xOffset, camera.layer[i].yOffset end
-
-			--map.layer[i]._updateCamera = camera.layer[i].update
 		end
 	end
 
@@ -137,8 +123,6 @@ function lib_camera.addControl(map)
 	-- Scale bounds to screen
 	function camera.scaleBounds(doX, doY)
 		if camera.scaleBoundsToScreen then
-			--camera.scaledBounds.xMax = camera.bounds.xMax
-
 			local xMin = camera.bounds.xMin
 			local xMax = camera.bounds.xMax
 			local yMin = camera.bounds.yMin
@@ -164,9 +148,6 @@ function lib_camera.addControl(map)
 			end
 
 			if doY then
-				local yMin = camera.bounds.yMin
-				local yMax = camera.bounds.yMax
-				
 				local scaled_yMin = yMin / map.yScale
 				local scaled_yMax = yMax - (scaled_yMin - yMin)
 
@@ -181,7 +162,6 @@ function lib_camera.addControl(map)
 				camera.scaledBounds.yMin = scaled_yMin
 				camera.scaledBounds.yMax = scaled_yMax
 			end
-
 		else
 			-- Move along, nothing to see here; just set the scaled bounds to the camera bounds
 			camera.scaledBounds.xMin, camera.scaledBounds.xMax, camera.scaledBounds.yMin, camera.scaledBounds.yMax = camera.bounds.xMin, camera.bounds.xMax, camera.bounds.yMin, camera.bounds.yMax
@@ -232,10 +212,10 @@ function lib_camera.addControl(map)
 	-- Set/Get Viewpoint
 	------------------------------------------------------------------------------
 	function map.setViewpoint(x, y)
-		tprint.add("Set Camera Viewpoint")
+		tprint_add("Set Camera Viewpoint")
 		local x, y = getXY(x, y)
 		camera.viewX, camera.viewY = x, y
-		tprint.remove()
+		tprint_remove()
 	end
 
 	function map.getViewpoint()
@@ -246,11 +226,11 @@ function lib_camera.addControl(map)
 	-- Position Camera
 	------------------------------------------------------------------------------
 	function map.positionCamera(x, y)
-		tprint.add("Position Camera")
+		tprint_add("Position Camera")
 		local x, y = getXY(x, y)
 		map.setViewpoint(x, y)
 		map.snapCamera() -- This isn't defined here, but we'll have it if control ever reaches here
-		tprint.remove()
+		tprint_remove()
 	end
 
 	------------------------------------------------------------------------------
@@ -268,12 +248,12 @@ function lib_camera.addControl(map)
 	-- Set Focus
 	------------------------------------------------------------------------------
 	function map.setCameraFocus(f, noSnapCamera)
-		tprint.add("Set Camera Focus")
+		tprint_add("Set Camera Focus")
 		
-		tprint.assert(f ~= nil and f.x ~= nil and f.y ~= nil, "Invalid focus object passed.")
+		tprint_assert(f ~= nil and f.x ~= nil and f.y ~= nil, "Invalid focus object passed.")
 
 		camera.getFocusXY = function()
-			tprint.assert(f ~= nil and f.x ~= nil and f.y ~= nil, "Focus object invalid.")
+			tprint_assert(f ~= nil and f.x ~= nil and f.y ~= nil, "Focus object invalid.")
 			return f.x, f.y
 		end
 
@@ -285,7 +265,7 @@ function lib_camera.addControl(map)
 			map.snapCamera() -- Center on object to start out; this function is not defined in this library, but we know we'll get it when lib_update processes the map
 		end
 
-		tprint.remove()
+		tprint_remove()
 	end
 
 	------------------------------------------------------------------------------
@@ -312,15 +292,15 @@ function lib_camera.addControl(map)
 	------------------------------------------------------------------------------
 	-- Set tracking level (in tracking level format)	
 	function map.setTrackingLevel(t)
-		tprint.assert(t ~= nil, "Missing argument to set tracking level.")
-		tprint.assert(t > 0, "Invalid argument passed to set tracking level: expected [t] > 0 but got " .. t .. " instead")
+		tprint_assert(t ~= nil, "Missing argument to set tracking level.")
+		tprint_assert(t > 0, "Invalid argument passed to set tracking level: expected [t] > 0 but got " .. t .. " instead")
 		camera.trackingLevel = t
 	end
 
 	-- Set tracking level (in damping format)
 	function map.setDamping(d)
-		tprint.assert(d ~= nil, "Missing argument to set damping.")
-		tprint.assert(d ~= 0, "Invalid argument passed to set damping: expected t ≠ 0 but got 0 instead.")
+		tprint_assert(d ~= nil, "Missing argument to set damping.")
+		tprint_assert(d ~= 0, "Invalid argument passed to set damping: expected t ≠ 0 but got 0 instead.")
 		return map.setTrackingLevel(1 / d)
 	end
 
@@ -335,7 +315,7 @@ function lib_camera.addControl(map)
 	end
 
 
-	tprint.remove()
+	tprint_remove()
 	return camera
 end
 

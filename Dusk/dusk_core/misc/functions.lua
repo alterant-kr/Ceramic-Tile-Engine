@@ -15,19 +15,20 @@ local require = require
 
 local json = require("json")
 local lib_settings = require("Dusk.dusk_core.misc.settings")
-local dot = require("Dusk.dusk_core.misc.dot")
-local tprint = require("Dusk.dusk_core.misc.tprint")
+local dot = require("Dusk.dusk_core.external.dot")
+local syfer = require("Dusk.dusk_core.external.syfer")
 
 local type = type
 local pairs = pairs
 local table_concat = table.concat
 local string_len = string.len
+local getSetting = lib_settings.get
 
 --------------------------------------------------------------------------------
 -- Mini Functions
 --------------------------------------------------------------------------------
 -- String to value
-local stringToValue = function(value) local v if value == "true" or value == "false" then if value == "true" then v = true else v = false end elseif value:match("%-?%d+%.?[%d]+") == value then v = tonumber(value) elseif value:match("^!json!") then v = json.decode(value:sub(7)) else if value:sub(1,1) == "\"" and value:sub(-1) == "\"" then v = value:sub(2, -2) else v = value end end return v end
+local stringToValue = function(value, vars) local v if value == "true" or value == "false" then if value == "true" then v = true else v = false end elseif value:match("%-?%d+%.?[%d]+") == value then v = tonumber(value) elseif value:match("^!json!") then v = json.decode(value:sub(7)) elseif value:match("!eval!") then v = syfer.solve(value:sub(7), getSetting("evalVariables")) else if value:sub(1,1) == "\"" and value:sub(-1) == "\"" then v = value:sub(2, -2) else v = value end end return v end
 -- First not nil
 local fnn = function(...) for i = 1, #arg do if arg[i] ~= nil then return arg[i] end end end
 -- Splice table
@@ -37,15 +38,21 @@ local function isPolyClockwise(pointList) local area = 0 for i = 1, #pointList -
 -- Reverse polygon (in form of [x,y, x,y, x,y], not [[x,y], [x,y]])
 local function reversePolygon(t) local nt = {} for i = 1, #t, 2 do nt[#nt + 1] = t[#t - i] nt[#nt + 1] = t[#t - i + 1] end return nt end
 -- Get X/Y (either number[x] and number[y], table[x] with .x,.y, or table[x] with [1],[2])
-local function getXY(x, y) local x, y = x, y if type(x) == "table" then if x.x and x.y then x, y = x.x, x.y else x, y = x[1], x[2] end end if x and y then return x, y else tprint.error("Missing X- or Y-argument.") end end
+local function getXY(x, y) local x, y = x, y if type(x) == "table" then if x.x and x.y then x, y = x.x, x.y else x, y = x[1], x[2] end end if x and y then return x, y else tprint_error("Missing X- or Y-argument.") end end
 -- Clamp value to a range
 local function clamp(v, l, h) return (v < l and l) or (v > h and h) or v end
 -- Reverse table ([1, 2, 3] -> [3, 2, 1])
 local function reverseTable(t) local new = {} for i = 1, #t do new[#t - (i - 1)] = t[i] end return new end
 -- Add properties
-local function addProperties(props, propName, obj) for k, v in pairs(props[propName]) do if (lib_settings.get("dotImpliesTable") or props.options.usedot[k]) and not props.options.nodot[k] then dot(obj, k, v) else obj[k] = v end end end
+local function addProperties(props, propName, obj) for k, v in pairs(props[propName]) do if (getSetting("dotImpliesTable") or props.options.usedot[k]) and not props.options.nodot[k] then dot(obj, k, v) else obj[k] = v end end end
 -- Get directory
 local function getDirectory(dirTree, path) local path = path local numDirs = #dirTree local _i = 1 while path:sub(_i, _i + 2) == "../" do _i = _i + 3 numDirs = numDirs - 1 end local filename = path:sub(_i) local dirPath = table_concat(dirTree, "/", 1, numDirs) return dirPath, filename end
+-- Has bit
+local function hasBit(x, p) return x % (p + p) >= p end
+-- Set bit
+local function setBit(x, p) return hasbit(x, p) and x or x + p end
+-- Clear bit
+local function clearBit(x, p) return x - p end
 
 --------------------------------------------------------------------------------
 -- Get Properties
@@ -70,11 +77,11 @@ local function getProperties(data, objPrefix, isLayer)
 
 		local dotMode = "default"
 		if key:match("^!nodot!") then
-			key = key:sub((lib_settings.get("spaceAfterEscapedPrefix") and 9) or 8)
-			dotMode = "forced-off"
+			key = key:sub((getSetting("spaceAfterEscapedPrefix") and 9) or 8)
+			dotMode = "0"
 		elseif key:match("^!dot!") then
-			key = key:sub((lib_settings.get("spaceAfterEscapedPrefix") and 7) or 6)
-			dotMode = "forced-on"
+			key = key:sub((getSetting("spaceAfterEscapedPrefix") and 7) or 6)
+			dotMode = "1"
 		end
 
 		if key:match("^physics:") then
@@ -104,7 +111,7 @@ local function getProperties(data, objPrefix, isLayer)
 			end
 		end
 
-		v = stringToValue(value)
+		v = stringToValue(value, layerVars)
 
 		if k == "enabled" and insertionTable == p.physics[1] then
 			if v == true then
@@ -113,7 +120,7 @@ local function getProperties(data, objPrefix, isLayer)
 				p.options.physicsExistent = false
 			end
 		else
-			if dotMode == "forced-on" then p.options.usedot[k] = true elseif dotMode == "forced-off" then p.options.nodot[k] = true end
+			if dotMode == "1" then p.options.usedot[k] = true elseif dotMode == "0" then p.options.nodot[k] = true end
 			insertionTable[k] = v
 		end
 	end
@@ -143,5 +150,8 @@ functions.reverseTable = reverseTable
 functions.addProperties = addProperties
 functions.getProperties = getProperties
 functions.getDirectory = getDirectory
+functions.hasBit = hasBit
+functions.setBit = setBit
+functions.clearBit = clearBit
 
 return functions

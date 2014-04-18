@@ -1,8 +1,6 @@
 --------------------------------------------------------------------------------
 --[[
-Dusk Engine Demo
-
-This is a rather unpolished interface; I wanted to publicize the engine before working on better demos.
+Dusk Engine
 --]]
 --------------------------------------------------------------------------------
 
@@ -12,15 +10,34 @@ local textureFilter = "nearest"
 display.setDefault("minTextureFilter", textureFilter)
 display.setDefault("magTextureFilter", textureFilter)
 
-_G.levelNum = 1 -- Normally I'd be against using _G, but, in this case, this is the only way I can think of without making bob.lua one big function (or using a globals file, which would be a bit much just for a level designation number)
+require("physics")
+physics.start()
 
-local function loadDemo()
-	require("bob")
+local dusk = require("Dusk.Dusk")
+require("Plugins.mapcutter")
+
+local map = dusk.buildMapFromLayers("everything.json", {1,2})
+
+map.setTrackingLevel(0.3)
+
+function map.drag(event)
+	local viewX, viewY = map.getViewpoint()
+	if "began" == event.phase then
+		display.getCurrentStage():setFocus(map)
+		map.isFocus = true
+		map._x, map._y = event.x + viewX, event.y + viewY
+	elseif map.isFocus then
+		if "moved" == event.phase then
+			map.setViewpoint(map._x - event.x, map._y - event.y)
+			map.updateView() -- Update the map's camera and culling directly after changing position
+		elseif "ended" == event.phase then
+			display.getCurrentStage():setFocus(nil)
+			map.isFocus = false
+		end
+	end
 end
 
-local function alertListener(event)
-	levelNum = 4 - event.index -- Because we put the buttons reversed so that they would be in the right positions, we have to invert the index to get the correct level
-	loadDemo()
-end
+map:addEventListener("touch", map.drag)
+Runtime:addEventListener("enterFrame", map.updateView)
 
-native.showAlert("Bob", "Welcome to the Dusk demo!\n\nChoose your level.", {"3", "2", "1"}, alertListener)
+--native.showAlert("Dusk", "Welcome to the Dusk Engine. Check out the demos inside the Demos/ folder. The map loaded on the screen is a very basic map to test various Dusk capabilities.", {"Got it!"})
